@@ -1,34 +1,61 @@
-# PokerTerminalPS v0.2
+# PokerTerminalPS v0.3
 
 PowerShell 终端版德州扑克本地演示。
 
-当前版本：v0.2「真人 + 机器人 Demo」。本版本不包含局域网联机、Host 模式、Client 模式、GUI 或网页。
+当前版本：v0.3「核心规则可验收」。本版本聚焦本地真人 + 机器人 Demo、核心下注规则、奖池结算和稳定性验证；不包含局域网联机、Host/Client、GUI、网页或高级 Bot 策略。
 
 ## 运行
+
+首次在当前 PowerShell 进程中运行脚本时，可以先放开本进程执行策略：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+```
+
+运行全部自动化测试：
+
+```powershell
+.\tests\Run-Tests.ps1
+```
 
 单机 1 个真人 + 5 个机器人：
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
 .\Start-Poker.ps1 -Mode Local -Bots 5
 ```
 
-自动验证几手牌：
+自动跑 50 手牌，用于本地压力测试和稳定性验证：
 
 ```powershell
-.\Start-Poker.ps1 -Mode Local -Bots 5 -AutoPlay -Hands 3
+.\Start-Poker.ps1 -Mode Local -Bots 5 -AutoPlay -Hands 50
 ```
+
+`-AutoPlay` 会把真人座位也交给机器人自动行动，适合快速验证流程是否崩溃、是否能连续进入下一手牌。`-Hands` 当前支持 1 到 1000 手牌。
+
+## v0.3 已完成
+
+- all-in 规则验证。
+- 主池 / 边池构建与派奖验证。
+- 弃牌玩家已投入筹码进入奖池，但不能参与领奖。
+- 平分奖池和零头固定分配验证。
+- 单挑 PreFlop / Postflop 行动顺序验证。
+- 最小加注规则验证。
+- 短筹码 call 自动 all-in 验证。
+- all-in 不足完整加注时不会错误重开行动权。
+- A2345 顺子、两对踢脚等关键牌型比较验证。
+- 50 手牌 AutoPlay 稳定性验证。
 
 ## 当前功能
 
-- 终端文字界面
-- 本地单桌德州扑克流程
-- 1 个本地真人可以和最多 5 个机器人连续玩牌
-- 机器人只会选择合法动作
-- 支持摊牌、全下、边池基础结算
-- 回合结束公布所有玩家手牌和最大牌型
-- 下注前显示你的当前最大牌型
-- 下注前显示你最可能形成的前三种最终牌型概率
+- 终端文字界面。
+- 本地单桌德州扑克流程。
+- 1 个本地真人可以和最多 5 个机器人连续玩牌。
+- 机器人只会从合法动作中选择，并通过统一下注入口执行。
+- 支持摊牌、全下、主池、边池和多人派奖。
+- 回合结束公布所有玩家手牌和最终最大牌型。
+- 下注前显示你的当前最大牌型。
+- 下注前显示你最可能形成的前三种最终牌型概率。
+- 人类玩家可用编号选择动作。
 
 ## 常用命令
 
@@ -39,6 +66,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 ```
 
 直接输入编号即可执行对应动作。下注或加注编号如果不带金额，会使用最小合法金额；也可以输入 `3 160` 这类形式指定金额。
+
+仍保留中文和英文命令别名：
 
 ```text
 弃牌 / fold
@@ -51,6 +80,15 @@ Set-ExecutionPolicy -Scope Process Bypass
 帮助 / help
 退出 / quit
 ```
+
+## 当前不包含
+
+- 局域网联机。
+- Host / Client 模式。
+- GUI。
+- 网页版本。
+- 高级 Bot 策略。
+- 持久化存档或回放系统。
 
 ## 测试
 
