@@ -27,11 +27,31 @@ Run-TestCase "Wheel straight is recognized as five high" {
     Assert-SequenceEqual @(5) $result.Kickers
 }
 
+Run-TestCase "A2345 straight compares as five high" {
+    $wheel = Evaluate-Hand7 -Cards @(New-TestCards @('As', '2d', '3h', '4c', '5s', 'Kd', 'Qc'))
+    $sixHigh = Evaluate-Hand7 -Cards @(New-TestCards @('2s', '3d', '4h', '5c', '6s', 'Kd', 'Qc'))
+
+    Assert-Equal 'Straight' $wheel.RankName
+    Assert-SequenceEqual @(5) $wheel.Kickers
+    Assert-True ((Compare-HandResult -Left $wheel -Right $sixHigh) -lt 0)
+}
+
 Run-TestCase "Two pair kicker decides winner" {
     $left = Evaluate-Hand7 -Cards @(New-TestCards @('As', 'Ah', 'Kd', 'Kc', 'Qs', '2d', '3c'))
     $right = Evaluate-Hand7 -Cards @(New-TestCards @('Ad', 'Ac', 'Kh', 'Ks', 'Js', '2c', '3d'))
 
     Assert-True ((Compare-HandResult -Left $left -Right $right) -gt 0)
+}
+
+Run-TestCase "Two pair compares kicker after matching pair ranks" {
+    $queenKicker = Evaluate-Hand7 -Cards @(New-TestCards @('As', 'Ah', 'Kd', 'Kc', 'Qs', '2d', '3c'))
+    $jackKicker = Evaluate-Hand7 -Cards @(New-TestCards @('Ad', 'Ac', 'Kh', 'Ks', 'Js', '2c', '3d'))
+
+    Assert-Equal 'Two Pair' $queenKicker.RankName
+    Assert-Equal 'Two Pair' $jackKicker.RankName
+    Assert-SequenceEqual @(14, 13, 12) $queenKicker.Kickers
+    Assert-SequenceEqual @(14, 13, 11) $jackKicker.Kickers
+    Assert-True ((Compare-HandResult -Left $queenKicker -Right $jackKicker) -gt 0)
 }
 
 Run-TestCase "Flush comparison starts at highest card" {

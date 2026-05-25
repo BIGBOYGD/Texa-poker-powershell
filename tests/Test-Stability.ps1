@@ -10,26 +10,27 @@
 . "$PSScriptRoot\..\src\Bot\BotBase.ps1"
 . "$PSScriptRoot\..\src\Local\GameLoop.ps1"
 
-Run-TestCase "Auto simulation completes 20 hands without changing total chips" {
+Run-TestCase "Auto simulation completes 50 hands without changing total chips" {
     $players = @(
-        (New-PlayerState -Seat 1 -Name 'Human-Auto' -Type 'Bot' -Chips 1000),
-        (New-PlayerState -Seat 2 -Name 'Bot-2' -Type 'Bot' -Chips 1000),
-        (New-PlayerState -Seat 3 -Name 'Bot-3' -Type 'Bot' -Chips 1000),
-        (New-PlayerState -Seat 4 -Name 'Bot-4' -Type 'Bot' -Chips 1000),
-        (New-PlayerState -Seat 5 -Name 'Bot-5' -Type 'Bot' -Chips 1000),
-        (New-PlayerState -Seat 6 -Name 'Bot-6' -Type 'Bot' -Chips 1000)
+        (New-PlayerState -Seat 1 -Name 'Human-Auto' -Type 'Bot' -Chips 10000),
+        (New-PlayerState -Seat 2 -Name 'Bot-2' -Type 'Bot' -Chips 10000),
+        (New-PlayerState -Seat 3 -Name 'Bot-3' -Type 'Bot' -Chips 10000),
+        (New-PlayerState -Seat 4 -Name 'Bot-4' -Type 'Bot' -Chips 10000),
+        (New-PlayerState -Seat 5 -Name 'Bot-5' -Type 'Bot' -Chips 10000),
+        (New-PlayerState -Seat 6 -Name 'Bot-6' -Type 'Bot' -Chips 10000)
     )
     $game = New-GameState -Players $players -SmallBlind 10 -BigBlind 20
 
-    for ($hand = 1; $hand -le 20; $hand++) {
+    for ($hand = 1; $hand -le 50; $hand++) {
         Invoke-LocalHand -Game $game -MaxTurns 500
 
         $total = 0
         foreach ($player in $game.Players) {
             $total += [int]$player.Chips
+            Assert-True ([int]$player.Chips -ge 0) "Player $($player.Seat) should not have negative chips."
         }
 
-        Assert-Equal 6000 $total
+        Assert-Equal 60000 $total
         Assert-Equal 'Finished' $game.Street
         Assert-Equal $hand $game.HandId
     }
