@@ -1,0 +1,7 @@
+{
+  "smallBlind": 10,
+  "bigBlind": 20,
+  "startingChips": 1000,
+  "minPlayers": 2,
+  "maxPlayers": 6
+}
