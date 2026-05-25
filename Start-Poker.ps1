@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $false)][ValidateSet('Local', 'LocalHotSeat', 'Host', 'Client')][string]$Mode = 'Local',
     [Parameter(Mandatory = $false)][ValidateRange(0, 5)][int]$Bots = 5,
     [Parameter(Mandatory = $false)][ValidateRange(2, 6)][int]$Players = 2,
-    [Parameter(Mandatory = $false)][ValidateRange(1, 20)][int]$Hands = 1,
+    [Parameter(Mandatory = $false)][ValidateRange(1, 1000)][int]$Hands = 1,
     [Parameter(Mandatory = $false)][switch]$AutoPlay,
     [Parameter(Mandatory = $false)][switch]$Help
 )

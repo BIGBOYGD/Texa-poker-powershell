@@ -8,6 +8,7 @@ $testFiles = @(
     'Test-HandAdvisor.ps1',
     'Test-Betting.ps1',
     'Test-Pot.ps1',
+    'Test-IntegrationAllInFlow.ps1',
     'Test-Showdown.ps1',
     'Test-Bot.ps1',
     'Test-CommandParser.ps1',
