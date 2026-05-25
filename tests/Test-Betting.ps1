@@ -60,6 +60,7 @@ Run-TestCase "All-in does not make player chips negative" {
     Assert-Equal 35 $game.Players[0].TotalBetThisHand
     Assert-Equal 'AllIn' $game.Players[0].Status
     Assert-True ([int]$game.Players[0].Chips -ge 0)
+    Assert-True $game.Players[0].HasActedThisRound
 }
 
 Run-TestCase "Call with insufficient chips automatically becomes all-in" {
@@ -81,6 +82,9 @@ Run-TestCase "Call with insufficient chips automatically becomes all-in" {
     Assert-Equal 30 $game.Players[0].StreetBet
     Assert-Equal 30 $game.Players[0].TotalBetThisHand
     Assert-Equal 'AllIn' $game.Players[0].Status
+    Assert-True ([int]$game.Players[0].Chips -ge 0)
+    Assert-True $game.Players[0].HasActedThisRound
+    Assert-Equal 100 $game.CurrentBet
 }
 
 Run-TestCase "Short all-in raise does not reset already acted players" {
@@ -107,6 +111,10 @@ Run-TestCase "Short all-in raise does not reset already acted players" {
     Assert-Equal 50 $game.MinRaise
     Assert-True $game.Players[0].HasActedThisRound "Seat 1 should not be reset by an incomplete all-in raise."
     Assert-True $game.Players[1].HasActedThisRound "Seat 2 should not be reset by an incomplete all-in raise."
+    Assert-Equal 100 $game.Players[0].StreetBet
+    Assert-Equal 100 $game.Players[1].StreetBet
+    Assert-Equal 130 $game.Players[2].StreetBet
+    Assert-Equal 130 $game.Players[2].TotalBetThisHand
     Assert-Equal 'AllIn' $game.Players[2].Status
 }
 
@@ -128,6 +136,8 @@ Run-TestCase "Raise below minimum is rejected" {
     $game = New-BettingTestGame
     $threw = $false
 
+    Assert-False (Test-PlayerActionLegal -Game $game -Seat 1 -Command 'raise' -Amount 30)
+
     try {
         Apply-PlayerAction -Game $game -Seat 1 -Command 'raise' -Amount 30
     } catch {
@@ -137,6 +147,9 @@ Run-TestCase "Raise below minimum is rejected" {
     Assert-True $threw "Raise to 30 should be rejected when current bet is 20 and min raise is 20."
     Assert-Equal 20 $game.CurrentBet
     Assert-Equal 1000 $game.Players[0].Chips
+    Assert-Equal 0 $game.Players[0].StreetBet
+    Assert-Equal 0 $game.Players[0].TotalBetThisHand
+    Assert-False $game.Players[0].HasActedThisRound
 }
 
 Run-TestCase "Betting round closes after all active players match current bet" {
@@ -170,6 +183,8 @@ Run-TestCase "Heads-up preflop action starts with dealer small blind" {
     Assert-Equal 10 $game.Players[0].StreetBet
     Assert-Equal 20 $game.Players[1].StreetBet
     Assert-Equal 1 $game.ActionSeat
+    Assert-Equal 20 $game.CurrentBet
+    Assert-Equal 20 $game.MinRaise
 }
 
 Run-TestCase "Heads-up postflop streets start with big blind" {
@@ -183,12 +198,17 @@ Run-TestCase "Heads-up postflop streets start with big blind" {
     Advance-Street -Game $game
     Assert-Equal 'Flop' $game.Street
     Assert-Equal 2 $game.ActionSeat
+    Assert-Equal 0 $game.CurrentBet
+    Assert-Equal 0 $game.Players[0].StreetBet
+    Assert-Equal 0 $game.Players[1].StreetBet
 
     Advance-Street -Game $game
     Assert-Equal 'Turn' $game.Street
     Assert-Equal 2 $game.ActionSeat
+    Assert-Equal 0 $game.CurrentBet
 
     Advance-Street -Game $game
     Assert-Equal 'River' $game.Street
     Assert-Equal 2 $game.ActionSeat
+    Assert-Equal 0 $game.CurrentBet
 }

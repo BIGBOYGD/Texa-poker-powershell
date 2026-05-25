@@ -51,9 +51,34 @@ Run-TestCase "Three player all-in creates layered side pots" {
     Assert-Equal 300 $pots[0].Amount
     Assert-Equal 400 $pots[1].Amount
     Assert-Equal 300 $pots[2].Amount
+    Assert-Equal 1000 ([int]$pots[0].Amount + [int]$pots[1].Amount + [int]$pots[2].Amount)
     Assert-SequenceEqual @(1, 2, 3) $pots[0].EligibleSeats
     Assert-SequenceEqual @(2, 3) $pots[1].EligibleSeats
     Assert-SequenceEqual @(3) $pots[2].EligibleSeats
+}
+
+Run-TestCase "Three player all-in 100 300 300 creates main pot 300 and side pot 400" {
+    $players = @(
+        (New-PlayerState -Seat 1 -Name 'A' -Type 'HumanLocal' -Chips 0),
+        (New-PlayerState -Seat 2 -Name 'B' -Type 'HumanLocal' -Chips 0),
+        (New-PlayerState -Seat 3 -Name 'C' -Type 'HumanLocal' -Chips 0)
+    )
+    $game = New-GameState -Players $players -SmallBlind 10 -BigBlind 20
+    $game.Players[0].TotalBetThisHand = 100
+    $game.Players[0].Status = 'AllIn'
+    $game.Players[1].TotalBetThisHand = 300
+    $game.Players[1].Status = 'AllIn'
+    $game.Players[2].TotalBetThisHand = 300
+    $game.Players[2].Status = 'AllIn'
+
+    $pots = @(Build-Pots -Game $game)
+
+    Assert-Equal 2 $pots.Count
+    Assert-Equal 300 $pots[0].Amount
+    Assert-Equal 400 $pots[1].Amount
+    Assert-Equal 700 ([int]$pots[0].Amount + [int]$pots[1].Amount)
+    Assert-SequenceEqual @(1, 2, 3) $pots[0].EligibleSeats
+    Assert-SequenceEqual @(2, 3) $pots[1].EligibleSeats
 }
 
 Run-TestCase "Folded player contribution stays in pot but cannot win" {
@@ -74,14 +99,17 @@ Run-TestCase "Folded player contribution stays in pot but cannot win" {
         3 = [pscustomobject]@{ RankLevel = 2; Kickers = @(12, 11, 8, 6) }
     }
 
+    Assert-Equal 1 $game.Pots.Count
     Assert-Equal 300 $game.Pots[0].Amount
     Assert-SequenceEqual @(2, 3) $game.Pots[0].EligibleSeats
+    Assert-False (@($game.Pots[0].EligibleSeats) -contains 1)
 
     Award-Pots -Game $game -HandResults $results
 
     Assert-Equal 0 $game.Players[0].Chips
     Assert-Equal 0 $game.Players[1].Chips
     Assert-Equal 300 $game.Players[2].Chips
+    Assert-Equal 300 ([int]$game.Players[0].Chips + [int]$game.Players[1].Chips + [int]$game.Players[2].Chips)
 }
 
 Run-TestCase "Two players split the main pot" {
@@ -100,6 +128,7 @@ Run-TestCase "Two players split the main pot" {
 
     Assert-Equal 100 $game.Players[0].Chips
     Assert-Equal 100 $game.Players[1].Chips
+    Assert-Equal 200 ([int]$game.Players[0].Chips + [int]$game.Players[1].Chips)
 }
 
 Run-TestCase "Main pot and side pot can be won by different players" {
@@ -119,11 +148,18 @@ Run-TestCase "Main pot and side pot can be won by different players" {
         3 = [pscustomobject]@{ RankLevel = 2; Kickers = @(12, 11, 9, 8) }
     }
 
+    Assert-Equal 2 $game.Pots.Count
+    Assert-Equal 300 $game.Pots[0].Amount
+    Assert-Equal 400 $game.Pots[1].Amount
+    Assert-SequenceEqual @(1, 2, 3) $game.Pots[0].EligibleSeats
+    Assert-SequenceEqual @(2, 3) $game.Pots[1].EligibleSeats
+
     Award-Pots -Game $game -HandResults $results
 
     Assert-Equal 300 $game.Players[0].Chips
     Assert-Equal 400 $game.Players[1].Chips
     Assert-Equal 0 $game.Players[2].Chips
+    Assert-Equal 700 ([int]$game.Players[0].Chips + [int]$game.Players[1].Chips + [int]$game.Players[2].Chips)
 }
 
 Run-TestCase "Award pots pays only eligible winners" {
@@ -141,6 +177,7 @@ Run-TestCase "Award pots pays only eligible winners" {
     Assert-Equal 0 $game.Players[1].Chips
     Assert-Equal 0 $game.Players[2].Chips
     Assert-Equal 900 $game.Players[3].Chips
+    Assert-Equal 1300 ([int]$game.Players[0].Chips + [int]$game.Players[1].Chips + [int]$game.Players[2].Chips + [int]$game.Players[3].Chips)
 }
 
 Run-TestCase "Award pots splits ties and gives remainder by seat order" {
@@ -159,4 +196,5 @@ Run-TestCase "Award pots splits ties and gives remainder by seat order" {
 
     Assert-Equal 51 $game.Players[0].Chips
     Assert-Equal 50 $game.Players[1].Chips
+    Assert-Equal 101 ([int]$game.Players[0].Chips + [int]$game.Players[1].Chips)
 }

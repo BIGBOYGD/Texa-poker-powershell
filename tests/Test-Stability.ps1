@@ -22,17 +22,27 @@ Run-TestCase "Auto simulation completes 50 hands without changing total chips" {
     $game = New-GameState -Players $players -SmallBlind 10 -BigBlind 20
 
     for ($hand = 1; $hand -le 50; $hand++) {
+        $previousHandId = [int]$game.HandId
         Invoke-LocalHand -Game $game -MaxTurns 500
 
         $total = 0
+        $playersWithChips = 0
         foreach ($player in $game.Players) {
             $total += [int]$player.Chips
             Assert-True ([int]$player.Chips -ge 0) "Player $($player.Seat) should not have negative chips."
+            if ([int]$player.Chips -gt 0) {
+                $playersWithChips++
+            }
         }
 
         Assert-Equal 60000 $total
         Assert-Equal 'Finished' $game.Street
+        Assert-True ($null -eq $game.ActionSeat)
+        Assert-Equal ($previousHandId + 1) $game.HandId
         Assert-Equal $hand $game.HandId
+        if ($hand -lt 50) {
+            Assert-True ($playersWithChips -ge 2) "At least two players need chips before the next simulated hand."
+        }
     }
 }
 
