@@ -3,6 +3,9 @@ param(
     [Parameter(Mandatory = $false)][ValidateRange(0, 5)][int]$Bots = 5,
     [Parameter(Mandatory = $false)][ValidateRange(2, 6)][int]$Players = 2,
     [Parameter(Mandatory = $false)][ValidateRange(1, 1000)][int]$Hands = 1,
+    [Parameter(Mandatory = $false)][ValidateRange(1, 65535)][int]$Port = 7777,
+    [Parameter(Mandatory = $false)][Alias('Host')][string]$HostAddress = '127.0.0.1',
+    [Parameter(Mandatory = $false)][string]$Name = 'Player',
     [Parameter(Mandatory = $false)][switch]$AutoPlay,
     [Parameter(Mandatory = $false)][switch]$Help
 )
@@ -30,6 +33,9 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\src\Bot\BotBase.ps1"
 . "$PSScriptRoot\src\Persistence\DebugLogger.ps1"
 . "$PSScriptRoot\src\Local\GameLoop.ps1"
+. "$PSScriptRoot\src\Network\Protocol.ps1"
+. "$PSScriptRoot\src\Network\Server.ps1"
+. "$PSScriptRoot\src\Network\Client.ps1"
 
 function Show-PokerHelp {
     Write-Host "PokerTerminalPS"
@@ -38,6 +44,8 @@ function Show-PokerHelp {
     Write-Host "  .\Start-Poker.ps1 -Mode Local -Bots 1"
     Write-Host "  .\Start-Poker.ps1 -Mode Local -Bots 5 -AutoPlay -Hands 3"
     Write-Host "  .\Start-Poker.ps1 -Mode LocalHotSeat -Players 3"
+    Write-Host "  .\Start-Poker.ps1 -Mode Host -Port 7777"
+    Write-Host "  .\Start-Poker.ps1 -Mode Client -Host 127.0.0.1 -Port 7777 -Name Alice"
     Write-Host ""
     Write-Host "$(New-RenderText @(0x5e38, 0x7528, 0x547d, 0x4ee4)):"
     $fold = New-RenderText @(0x5f03, 0x724c)
@@ -51,7 +59,7 @@ function Show-PokerHelp {
     $quitText = New-RenderText @(0x9000, 0x51fa)
     Write-Host "  fold/$fold / check/$check / call/$call / bet 80/$bet 80 / raise 160/$raise 160 / allin/$allin / status/$status / help/$helpText / quit/$quitText"
     Write-Host ""
-    Write-Host "$(New-RenderText @(0x8054, 0x673a, 0x6a21, 0x5f0f, 0x5c06, 0x5728, 0x540e, 0x7eed, 0x7248, 0x672c, 0x5b9e, 0x73b0))"
+    Write-Host "LAN stage 2: Host/Client join is enabled. Remote actions are stage 3."
 }
 
 if ($Help) {
@@ -59,9 +67,14 @@ if ($Help) {
     exit 0
 }
 
-if (@('Host', 'Client') -contains $Mode) {
-    Write-Host "Mode '$Mode' is planned for the LAN milestone and is not enabled in this local core build."
-    exit 2
+if ($Mode -eq 'Host') {
+    Start-PokerServer -Port $Port -MaxSeats 6
+    exit 0
+}
+
+if ($Mode -eq 'Client') {
+    Start-PokerClient -HostAddress $HostAddress -Port $Port -Name $Name | Out-Null
+    exit 0
 }
 
 $seatCount = if ($Mode -eq 'Local') { [Math]::Min(6, [Math]::Max(2, 1 + $Bots)) } else { $Players }
