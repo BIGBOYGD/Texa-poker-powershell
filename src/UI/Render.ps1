@@ -28,6 +28,31 @@ function ConvertTo-DisplayType {
     }
 }
 
+function ConvertTo-DisplayPlayerKind {
+    param([Parameter(Mandatory = $true)]$Player)
+
+    if ($Player.Type -eq 'HumanLocal') {
+        return (New-RenderText @(0x771f, 0x4eba))
+    }
+
+    if ($Player.Type -eq 'RemoteHuman') {
+        return (New-RenderText @(0x8054, 0x673a))
+    }
+
+    $botType = ''
+    if ($Player.PSObject.Properties.Name -contains 'BotType') {
+        $botType = [string]$Player.BotType
+    }
+
+    switch ($botType) {
+        'RandomBot' { return (New-RenderText @(0x968f, 0x673a)) }
+        'TightBot' { return (New-RenderText @(0x7d27, 0x624b)) }
+        'LooseBot' { return (New-RenderText @(0x677e, 0x624b)) }
+        'RuleBot' { return (New-RenderText @(0x89c4, 0x5219)) }
+        default { return (New-RenderText @(0x673a, 0x5668, 0x4eba)) }
+    }
+}
+
 function ConvertTo-DisplayStreet {
     param([Parameter(Mandatory = $true)][string]$Street)
 
@@ -38,6 +63,20 @@ function ConvertTo-DisplayStreet {
         'River' { return (New-RenderText @(0x6cb3, 0x724c, 0x5708)) }
         'Showdown' { return (New-RenderText @(0x644a, 0x724c)) }
         'Finished' { return (New-RenderText @(0x5df2, 0x7ed3, 0x675f)) }
+        default { return $Street }
+    }
+}
+
+function ConvertTo-CompactStreet {
+    param([Parameter(Mandatory = $true)][string]$Street)
+
+    switch ($Street) {
+        'PreFlop' { return (New-RenderText @(0x7ffb, 0x524d)) }
+        'Flop' { return (New-RenderText @(0x7ffb, 0x724c)) }
+        'Turn' { return (New-RenderText @(0x8f6c, 0x724c)) }
+        'River' { return (New-RenderText @(0x6cb3, 0x724c)) }
+        'Showdown' { return (New-RenderText @(0x644a, 0x724c)) }
+        'Finished' { return (New-RenderText @(0x7ed3, 0x675f)) }
         default { return $Street }
     }
 }
@@ -87,7 +126,7 @@ function ConvertTo-DisplayAction {
     }
 
     if ($null -ne $Action.MinAmount) {
-        return "$name $($Action.MinAmount)-$($Action.MaxAmount)"
+        return "$name$($Action.MinAmount)-$($Action.MaxAmount)"
     }
 
     return $name
@@ -99,11 +138,11 @@ function Format-NumberedLegalActions {
     $items = @()
     $index = 1
     foreach ($action in @($Actions)) {
-        $items += "$index. $(ConvertTo-DisplayAction -Action $action)"
+        $items += "$index.$(ConvertTo-DisplayAction -Action $action)"
         $index++
     }
 
-    return ($items -join ', ')
+    return ($items -join '  ')
 }
 
 function Format-CardList {
@@ -179,8 +218,8 @@ function Get-PlayerAdviceLines {
         return @()
     }
 
-    $currentLabel = New-RenderText @(0x5f53, 0x524d, 0x6700, 0x5927, 0x724c, 0x578b)
-    $predictionLabel = New-RenderText @(0x9ad8, 0x6982, 0x7387, 0x6210, 0x724c, 0x9884, 0x6d4b)
+    $currentLabel = New-RenderText @(0x6700, 0x5927)
+    $predictionLabel = New-RenderText @(0x9884, 0x6d4b)
     $lines = @()
 
     $current = Get-CurrentBestHandSummary -HoleCards @($viewer.HoleCards) -CommunityCards @($Game.CommunityCards)
@@ -189,10 +228,11 @@ function Get-PlayerAdviceLines {
 
     $predictions = @(Get-HandTypePredictions -HoleCards @($viewer.HoleCards) -CommunityCards @($Game.CommunityCards) -Top 3)
     if ($predictions.Count -gt 0) {
-        $lines += "$predictionLabel`:"
+        $items = @()
         for ($i = 0; $i -lt $predictions.Count; $i++) {
-            $lines += "$($i + 1). $($predictions[$i].RankName) $($predictions[$i].Probability)%"
+            $items += "$($i + 1). $($predictions[$i].RankName)$($predictions[$i].Probability)%"
         }
+        $lines += "$predictionLabel`: $($items -join '  ')"
     }
 
     return $lines
@@ -205,48 +245,52 @@ function Render-Table {
         [Parameter(Mandatory = $false)][switch]$ShowAllCards
     )
 
-    Write-Host '============================================================'
-    $pokerName = New-RenderText @(0x5fb7, 0x5dde, 0x6251, 0x514b)
     $firstLabel = New-RenderText @(0x7b2c)
-    $handLabel = New-RenderText @(0x624b, 0x724c)
-    $blindLabel = New-RenderText @(0x76f2, 0x6ce8)
-    Write-Host "PowerShell $pokerName  $firstLabel $($Game.HandId) $handLabel  $blindLabel $($Game.SmallBlind)/$($Game.BigBlind)"
+    $handLabel = New-RenderText @(0x624b)
+    $dealerLabel = New-RenderText @(0x5e84)
+    $blindLabel = New-RenderText @(0x76f2)
+    $potLabel = New-RenderText @(0x6c60)
+    $currentBetLabel = New-RenderText @(0x6ce8)
+    Write-Host "$firstLabel$($Game.HandId)$handLabel | $dealerLabel$($Game.DealerSeat) | $(ConvertTo-CompactStreet -Street $Game.Street) | $blindLabel$($Game.SmallBlind)/$($Game.BigBlind) | $potLabel$(Get-PotTotal -Game $Game) | $currentBetLabel$($Game.CurrentBet)"
 
-    $dealerLabel = New-RenderText @(0x5e84, 0x5bb6)
-    $seatLabel = New-RenderText @(0x5ea7, 0x4f4d)
-    $streetLabel = New-RenderText @(0x9636, 0x6bb5)
-    $potLabel = New-RenderText @(0x5e95, 0x6c60)
-    $currentBetLabel = New-RenderText @(0x5f53, 0x524d, 0x4e0b, 0x6ce8)
-    Write-Host "$dealerLabel`: $seatLabel $($Game.DealerSeat)   $streetLabel`: $(ConvertTo-DisplayStreet -Street $Game.Street)   $potLabel`: $(Get-PotTotal -Game $Game)   $currentBetLabel`: $($Game.CurrentBet)"
+    Write-Host '----------------------------------------------------'
 
-    $boardLabel = New-RenderText @(0x516c, 0x5171, 0x724c)
-    Write-Host "$boardLabel`: $(Format-CardList -Cards @($Game.CommunityCards) -TotalSlots 5)"
-    Write-Host '------------------------------------------------------------'
-
+    $seatHeader = New-RenderText @(0x5ea7)
+    $playersHeader = New-RenderText @(0x73a9, 0x5bb6)
+    $typeHeader = New-RenderText @(0x578b)
     $chipsLabel = New-RenderText @(0x7b79, 0x7801)
-    $betLabel = New-RenderText @(0x672c, 0x8f6e, 0x4e0b, 0x6ce8)
+    $betLabel = New-RenderText @(0x6ce8)
     $statusLabel = New-RenderText @(0x72b6, 0x6001)
-    $youLabel = New-RenderText @(0x4f60)
+    Write-Host "$seatHeader  $playersHeader      $typeHeader    $chipsLabel  $betLabel  $statusLabel"
     foreach ($player in @($Game.Players | Sort-Object Seat)) {
-        $marker = if ($player.Seat -eq $ViewerSeat) { $youLabel } else { ConvertTo-DisplayType -Type $player.Type }
+        $kind = ConvertTo-DisplayPlayerKind -Player $player
         $displayStatus = ConvertTo-DisplayStatus -Status $player.Status
-        Write-Host ("{0}{1,-2} {2,-12} {3}:{4,-5} {5}:{6,-4} {7}:{8,-8} {9}" -f $seatLabel, $player.Seat, $player.Name, $chipsLabel, $player.Chips, $betLabel, $player.StreetBet, $statusLabel, $displayStatus, $marker)
+        Write-Host ("{0,-3} {1,-8} {2,-4} {3,-5} {4,-3} {5}" -f $player.Seat, $player.Name, $kind, $player.Chips, $player.StreetBet, $displayStatus)
     }
 
-    Write-Host '------------------------------------------------------------'
+    Write-Host '----------------------------------------------------'
+    $boardLabel = New-RenderText @(0x516c, 0x5171)
+    Write-Host "$boardLabel`: $(Format-CardList -Cards @($Game.CommunityCards) -TotalSlots 5)"
     if ($null -ne $ViewerSeat) {
         $viewer = Get-PlayerBySeat -Game $Game -Seat $ViewerSeat
-        $yourCardsLabel = New-RenderText @(0x4f60, 0x7684, 0x624b, 0x724c)
-        Write-Host "$yourCardsLabel`: $(Format-CardList -Cards @($viewer.HoleCards))"
-        foreach ($line in @(Get-PlayerAdviceLines -Game $Game -ViewerSeat $ViewerSeat)) {
-            Write-Host $line
+        $yourCardsLabel = New-RenderText @(0x624b, 0x724c)
+        $adviceLines = @(Get-PlayerAdviceLines -Game $Game -ViewerSeat $ViewerSeat)
+        $handLine = "$yourCardsLabel`: $(Format-CardList -Cards @($viewer.HoleCards))"
+        if ($adviceLines.Count -gt 0) {
+            $handLine = "$handLine    $($adviceLines[0])"
+        }
+        Write-Host $handLine
+        if ($adviceLines.Count -gt 1) {
+            for ($i = 1; $i -lt $adviceLines.Count; $i++) {
+                Write-Host $adviceLines[$i]
+            }
         }
         if ($Game.Street -ne 'Finished') {
-            $toCallLabel = New-RenderText @(0x9700, 0x8981, 0x8ddf, 0x6ce8)
+            $toCallLabel = New-RenderText @(0x9700, 0x8ddf)
             $toCall = [Math]::Max(0, [int]$Game.CurrentBet - [int]$viewer.StreetBet)
             Write-Host "$toCallLabel`: $toCall"
             $actions = @(Get-LegalActions -Game $Game -Seat $ViewerSeat)
-            $legalActionsLabel = New-RenderText @(0x53ef, 0x7528, 0x547d, 0x4ee4)
+            $legalActionsLabel = New-RenderText @(0x547d, 0x4ee4)
             Write-Host "$legalActionsLabel`: $(Format-NumberedLegalActions -Actions $actions)"
         } else {
             Write-Host (New-RenderText @(0x672c, 0x624b, 0x724c, 0x5df2, 0x7ed3, 0x675f))
@@ -254,7 +298,7 @@ function Render-Table {
     }
 
     if ($ShowAllCards -or $Game.Street -eq 'Showdown' -or $Game.Street -eq 'Finished') {
-        Write-Host '------------------------------------------------------------'
+        Write-Host '----------------------------------------------------'
         foreach ($line in @(Get-RevealedHandsLines -Game $Game)) {
             Write-Host $line
         }

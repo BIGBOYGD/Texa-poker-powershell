@@ -4,8 +4,37 @@ function Get-BotAction {
         [Parameter(Mandatory = $true)]$Player
     )
 
-    if (Get-Command Get-RandomBotAction -ErrorAction SilentlyContinue) {
-        return Get-RandomBotAction -Game $Game -Player $Player
+    $botType = 'RandomBot'
+    if ($Player.PSObject.Properties.Name -contains 'BotType' -and -not [string]::IsNullOrWhiteSpace($Player.BotType)) {
+        $botType = [string]$Player.BotType
+    }
+
+    switch ($botType) {
+        'RuleBot' {
+            if (Get-Command Get-RuleBotAction -ErrorAction SilentlyContinue) {
+                return Get-RuleBotAction -Game $Game -Player $Player
+            }
+        }
+        'TightBot' {
+            if (Get-Command Get-TightBotAction -ErrorAction SilentlyContinue) {
+                return Get-TightBotAction -Game $Game -Player $Player
+            }
+        }
+        'LooseBot' {
+            if (Get-Command Get-LooseBotAction -ErrorAction SilentlyContinue) {
+                return Get-LooseBotAction -Game $Game -Player $Player
+            }
+        }
+        'RandomBot' {
+            if (Get-Command Get-RandomBotAction -ErrorAction SilentlyContinue) {
+                return Get-RandomBotAction -Game $Game -Player $Player
+            }
+        }
+        default {
+            if (Get-Command Get-RandomBotAction -ErrorAction SilentlyContinue) {
+                return Get-RandomBotAction -Game $Game -Player $Player
+            }
+        }
     }
 
     $actions = @(Get-LegalActions -Game $Game -Seat $Player.Seat)

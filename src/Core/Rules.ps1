@@ -142,6 +142,10 @@ function Start-NewHand {
     )
     $Game.MinRaise = $Game.BigBlind
     $Game.ActionSeat = $firstActionSeat
+    $firstActionPlayer = Get-PlayerBySeat -Game $Game -Seat $firstActionSeat
+    if ($null -ne $firstActionPlayer -and @('Folded', 'AllIn', 'Out') -contains $firstActionPlayer.Status) {
+        $Game.ActionSeat = Get-NextSeat -Game $Game -Seat $firstActionSeat -ActionableOnly
+    }
 }
 
 function Advance-Street {

@@ -20,8 +20,15 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\src\Core\Showdown.ps1"
 . "$PSScriptRoot\src\UI\CommandParser.ps1"
 . "$PSScriptRoot\src\UI\Render.ps1"
+. "$PSScriptRoot\src\Bot\BotProfiles.ps1"
+. "$PSScriptRoot\src\Bot\BotEvaluator.ps1"
+. "$PSScriptRoot\src\Bot\BotDecision.ps1"
 . "$PSScriptRoot\src\Bot\RandomBot.ps1"
+. "$PSScriptRoot\src\Bot\TightBot.ps1"
+. "$PSScriptRoot\src\Bot\LooseBot.ps1"
+. "$PSScriptRoot\src\Bot\RuleBot.ps1"
 . "$PSScriptRoot\src\Bot\BotBase.ps1"
+. "$PSScriptRoot\src\Persistence\DebugLogger.ps1"
 . "$PSScriptRoot\src\Local\GameLoop.ps1"
 
 function Show-PokerHelp {
@@ -67,13 +74,18 @@ for ($seat = 1; $seat -le $seatCount; $seat++) {
     if ($seat -eq 1) {
         $tablePlayers += New-PlayerState -Seat $seat -Name $humanName -Type 'HumanLocal' -Chips 1000
     } elseif ($Mode -eq 'Local') {
-        $tablePlayers += New-PlayerState -Seat $seat -Name "$botPrefix$seat" -Type 'Bot' -Chips 1000
+        $bot = New-PlayerState -Seat $seat -Name "$botPrefix$seat" -Type 'Bot' -Chips 1000
+        $botTypes = @('RandomBot', 'TightBot', 'LooseBot', 'RuleBot')
+        $bot | Add-Member -NotePropertyName BotType -NotePropertyValue $botTypes[($seat - 2) % $botTypes.Count]
+        $tablePlayers += $bot
     } else {
         $tablePlayers += New-PlayerState -Seat $seat -Name "$playerPrefix$seat" -Type 'HumanLocal' -Chips 1000
     }
 }
 
 $game = New-GameState -Players $tablePlayers -SmallBlind 10 -BigBlind 20 -Mode 'Local'
+$debugEnabled = $PSBoundParameters.ContainsKey('Debug') -or $DebugPreference -ne 'SilentlyContinue'
+$debugLogPath = Initialize-DebugLogger -Enabled:([bool]$debugEnabled) -RootPath $PSScriptRoot
 $handsWasSpecified = $PSBoundParameters.ContainsKey('Hands')
 $handsToPlay = if ($AutoPlay -or $handsWasSpecified) { $Hands } else { [int]::MaxValue }
 
@@ -106,7 +118,7 @@ for ($hand = 1; $hand -le $handsToPlay; $hand++) {
         break
     }
 
-    if (-not (Test-PlayerCanContinue -Game $game -Seat 1)) {
+    if (-not $AutoPlay -and -not (Test-PlayerCanContinue -Game $game -Seat 1)) {
         Write-Host (New-RenderText @(0x4f60, 0x7684, 0x7b79, 0x7801, 0x5df2, 0x4e3a, 0x20, 0x30, 0xff0c, 0x724c, 0x5c40, 0x7ed3, 0x675f))
         break
     }

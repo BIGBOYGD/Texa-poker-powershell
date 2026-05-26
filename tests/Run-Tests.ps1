@@ -1,22 +1,28 @@
+param(
+    [Parameter(Mandatory = $false)][switch]$Full,
+    [Parameter(Mandatory = $false)][switch]$Stress,
+    [Parameter(Mandatory = $false)][string[]]$Name = @()
+)
+
 $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\Assert.ps1"
+. "$PSScriptRoot\TestManifest.ps1"
 
-$testFiles = @(
-    'Test-Deck.ps1',
-    'Test-HandEvaluator.ps1',
-    'Test-HandAdvisor.ps1',
-    'Test-Betting.ps1',
-    'Test-Pot.ps1',
-    'Test-IntegrationAllInFlow.ps1',
-    'Test-Showdown.ps1',
-    'Test-Bot.ps1',
-    'Test-CommandParser.ps1',
-    'Test-Stability.ps1',
-    'Test-Rules.ps1',
-    'Test-Render.ps1',
-    'Test-GameLoop.ps1'
-)
+$testFiles = @(Resolve-TestFiles -Full:$Full -Stress:$Stress -Name $Name)
+if ($testFiles.Count -eq 0) {
+    Write-Host "No test files matched."
+    exit 1
+}
+
+$mode = if ($Stress) {
+    'stress'
+} elseif ($Full) {
+    'full'
+} else {
+    'quick'
+}
+Write-Host "Running $mode test set: $($testFiles.Count) file(s)."
 
 foreach ($testFile in $testFiles) {
     . "$PSScriptRoot\$testFile"
@@ -30,5 +36,5 @@ if ($failureCount -gt 0) {
 }
 
 Write-Host ""
-Write-Host "All tests passed."
+Write-Host "All selected tests passed."
 exit 0

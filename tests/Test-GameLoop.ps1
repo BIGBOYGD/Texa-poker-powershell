@@ -47,6 +47,22 @@ Run-TestCase "Betting round advances through legal bot actions" {
     Assert-Equal 20 $game.CurrentBet
 }
 
+Run-TestCase "Heads-up short small blind all-in is skipped before action" {
+    $players = @(
+        (New-PlayerState -Seat 1 -Name 'BigBlind' -Type 'Bot' -Chips 100),
+        (New-PlayerState -Seat 2 -Name 'ShortSmallBlind' -Type 'Bot' -Chips 8)
+    )
+    $game = New-GameState -Players $players -SmallBlind 10 -BigBlind 20
+    $game.DealerSeat = 1
+
+    Start-NewHand -Game $game
+
+    Assert-Equal 2 $game.DealerSeat
+    Assert-Equal 'AllIn' (Get-PlayerBySeat -Game $game -Seat 2).Status
+    Assert-Equal 1 $game.ActionSeat
+    Assert-True (@(Get-LegalActions -Game $game -Seat $game.ActionSeat).Count -gt 0)
+}
+
 Run-TestCase "Invalid human command is ignored until a legal command is provided" {
     $players = @(
         (New-PlayerState -Seat 1 -Name 'Human' -Type 'HumanLocal' -Chips 1000),

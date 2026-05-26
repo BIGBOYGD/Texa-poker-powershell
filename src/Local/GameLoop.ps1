@@ -113,6 +113,9 @@ function Invoke-BettingRound {
 
         $player = Get-PlayerBySeat -Game $Game -Seat $Game.ActionSeat
         $action = Get-LocalActionForPlayer -Game $Game -Player $player -ActionProvider $ActionProvider
+        if ($player.Type -eq 'Bot' -and (Get-Command Write-BotDecisionDebugLog -ErrorAction SilentlyContinue)) {
+            Write-BotDecisionDebugLog -Game $Game -Player $player -Action $action
+        }
 
         Apply-PlayerAction -Game $Game -Seat $player.Seat -Command $action.Command -Amount $action.Amount
         Set-NextActionSeat -Game $Game

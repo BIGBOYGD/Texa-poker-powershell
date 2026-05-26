@@ -4,9 +4,9 @@ This project follows the Markdown development document in the repository root.
 
 ## Current Version
 
-v0.3 is core-acceptable.
+v0.4 is complete and local Bot strategy acceptable.
 
-The local terminal game now has focused unit tests and integration tests for the core Texas Hold'em rule surface. The current milestone is considered acceptable for local rule verification, while still intentionally excluding networking, GUI, web UI, and advanced bot strategy.
+The local terminal game now has focused rule tests, integration tests, strategy Bot tests, optional Bot decision debug logs, split quick/full/stress test runners, and a 200-hand Bot tuning acceptance test. The current milestone is acceptable for local Bot play and strategy validation, while still intentionally excluding networking, GUI, web UI, player-history modeling, and replay.
 
 ## Implemented Scope
 
@@ -26,15 +26,13 @@ The local terminal game now has focused unit tests and integration tests for the
 - v0.3 heads-up PreFlop and Postflop action order verification.
 - v0.3 minimum raise and incomplete all-in raise verification.
 - v0.3 50-hand AutoPlay stability verification.
+- v0.4 TightBot, LooseBot, and RuleBot strategy profiles.
+- v0.4 RuleBot integrated scoring for hand strength, draws, position, pot odds, and opponent count.
+- v0.4 optional Debug Bot decision JSONL logs.
+- v0.4 200-hand Bot tuning statistics for VPIP, fold, call, bet/raise, and all-in rates.
+- v0.4 split test runner modes: quick, full, stress, and name-filtered test runs.
 
 ## Next Milestones
-
-### v0.4: Bot Strategy, Logs, and Replay
-
-- Improve robot strategy without changing the core rules contract.
-- Add structured game logs for hands, actions, pots, and showdown results.
-- Add replay support based on recorded hand logs.
-- Keep local terminal mode as the primary target.
 
 ### v0.5: LAN Host / Client
 
@@ -44,8 +42,9 @@ The local terminal game now has focused unit tests and integration tests for the
 
 ## Deferred Scope
 
-- Advanced strategy bots beyond v0.4 planning.
-- Persistence beyond logs and replay planning.
+- Player-history adaptive Bot strategy.
+- Replay implementation.
+- Persistence beyond optional Debug decision logs.
 - LAN Host / Client networking before v0.5.
 - Disconnect handling and reconnect logic.
 - GUI.

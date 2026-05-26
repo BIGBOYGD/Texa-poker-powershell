@@ -6,6 +6,8 @@
 . "$PSScriptRoot\..\src\Core\Pot.ps1"
 . "$PSScriptRoot\..\src\Core\Rules.ps1"
 . "$PSScriptRoot\..\src\Core\Showdown.ps1"
+. "$PSScriptRoot\..\src\UI\CommandParser.ps1"
+. "$PSScriptRoot\..\src\UI\Render.ps1"
 . "$PSScriptRoot\..\src\Bot\RandomBot.ps1"
 . "$PSScriptRoot\..\src\Bot\BotBase.ps1"
 . "$PSScriptRoot\..\src\Local\GameLoop.ps1"

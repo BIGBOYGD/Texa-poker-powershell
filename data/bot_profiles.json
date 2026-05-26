@@ -1,0 +1,46 @@
+{
+  "RandomBot": {
+    "enabled": true,
+    "description": "测试用随机机器人，只从合法动作中随机选择。",
+    "vpip": 0.30,
+    "aggression": 0.30,
+    "bluffRate": 0.05,
+    "callTolerance": 0.35,
+    "raiseBias": 0.25,
+    "riskTolerance": 0.35,
+    "randomness": 0.35
+  },
+  "TightBot": {
+    "enabled": true,
+    "description": "紧手保守机器人，弱牌弃牌多，强牌才主动进攻。",
+    "vpip": 0.18,
+    "aggression": 0.25,
+    "bluffRate": 0.02,
+    "callTolerance": 0.25,
+    "raiseBias": 0.20,
+    "riskTolerance": 0.20,
+    "randomness": 0.10
+  },
+  "LooseBot": {
+    "enabled": true,
+    "description": "松手激进机器人，更多跟注和下注，小概率诈唬。",
+    "vpip": 0.45,
+    "aggression": 0.65,
+    "bluffRate": 0.12,
+    "callTolerance": 0.60,
+    "raiseBias": 0.45,
+    "riskTolerance": 0.55,
+    "randomness": 0.20
+  },
+  "RuleBot": {
+    "enabled": true,
+    "description": "综合规则机器人，结合牌力、听牌、赔率、位置和人数做决策。",
+    "vpip": 0.28,
+    "aggression": 0.45,
+    "bluffRate": 0.06,
+    "callTolerance": 0.42,
+    "raiseBias": 0.35,
+    "riskTolerance": 0.40,
+    "randomness": 0.12
+  }
+}
