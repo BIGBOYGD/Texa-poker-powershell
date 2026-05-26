@@ -10,6 +10,7 @@ $script:QuickTestFiles = @(
     'Test-IntegrationAllInFlow.ps1',
     'Test-Showdown.ps1',
     'Test-DebugLogger.ps1',
+    'Test-NetworkProtocol.ps1',
     'Test-CommandParser.ps1',
     'Test-Rules.ps1',
     'Test-Render.ps1',
