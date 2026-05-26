@@ -32,6 +32,10 @@ function Get-LocalActionForPlayer {
         return Get-BotAction -Game $Game -Player $Player
     }
 
+    if ($Player.Type -eq 'RemoteHuman' -and $null -eq $ActionProvider) {
+        throw 'Remote action provider is required.'
+    }
+
     while ($true) {
         $rawAction = $null
         if ($null -ne $ActionProvider) {

@@ -14,9 +14,12 @@ function New-PokerClientState {
         TcpClient = $null
         Reader = $null
         Writer = $null
+        NextSeq = 1
         LastMessageType = $null
         LastSnapshot = $null
+        LastActionRequest = $null
         LastError = $null
+        IsFinished = $false
     }
 }
 
@@ -64,6 +67,7 @@ function Send-JoinRequest {
     }
 
     $message = New-JoinRequestMessage -Seq $Seq -Name $Client.Name
+    $Client.NextSeq = [Math]::Max([int]$Client.NextSeq, $Seq + 1)
     $Client.Writer.WriteLine((ConvertTo-MessageJson -Message $message))
     return $message
 }
@@ -94,10 +98,146 @@ function Show-StateSnapshot {
     }
 }
 
+function Get-ClientLegalActionsFromRequest {
+    param([Parameter(Mandatory = $true)]$ActionRequest)
+
+    $actions = @()
+    foreach ($action in @($ActionRequest.Payload.LegalActions)) {
+        $actions += [pscustomobject]@{
+            Command = [string]$action.Command
+            MinAmount = $action.MinAmount
+            MaxAmount = $action.MaxAmount
+        }
+    }
+
+    return $actions
+}
+
+function Test-ClientActionLegal {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$LegalActions,
+        [Parameter(Mandatory = $true)][string]$Command,
+        [Parameter(Mandatory = $false)]$Amount = $null
+    )
+
+    $commandName = $Command.ToLowerInvariant()
+    $matches = @($LegalActions | Where-Object { $_.Command -eq $commandName })
+    if ($matches.Count -eq 0) {
+        return $false
+    }
+
+    $action = $matches[0]
+    if ($null -ne $action.MinAmount) {
+        if ($null -eq $Amount) {
+            return $false
+        }
+
+        $amountValue = [int]$Amount
+        if ($amountValue -lt [int]$action.MinAmount -or $amountValue -gt [int]$action.MaxAmount) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function ConvertTo-ClientPlayerAction {
+    param(
+        [Parameter(Mandatory = $true)]$Client,
+        [Parameter(Mandatory = $true)]$ActionRequest,
+        [Parameter(Mandatory = $true)][string]$InputText,
+        [Parameter(Mandatory = $false)][Nullable[int]]$Seq = $null
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$Client.PlayerId)) {
+        throw 'Client has no PlayerId.'
+    }
+
+    $legalActions = @(Get-ClientLegalActionsFromRequest -ActionRequest $ActionRequest)
+    $rawAction = ConvertFrom-NumberedPlayerAction -InputText $InputText -LegalActions $legalActions
+    if ($null -eq $rawAction) {
+        $rawAction = ConvertTo-PlayerAction -InputText $InputText
+    }
+
+    switch ([string]$rawAction.Command) {
+        'quit' {
+            throw 'Player quit.'
+        }
+        'status' {
+            throw 'Status command is local to the client.'
+        }
+        'help' {
+            throw 'Help command is local to the client.'
+        }
+        'history' {
+            throw 'History command is local to the client.'
+        }
+    }
+
+    if (-not (Test-ClientActionLegal -LegalActions $legalActions -Command $rawAction.Command -Amount $rawAction.Amount)) {
+        throw 'Action is not legal in current state.'
+    }
+
+    $payload = [pscustomobject]@{
+        Command = ([string]$rawAction.Command).ToLowerInvariant()
+    }
+    if ($null -ne $rawAction.Amount) {
+        $payload | Add-Member -NotePropertyName Amount -NotePropertyValue ([int]$rawAction.Amount)
+    }
+
+    $messageSeq = if ($null -ne $Seq) { [int]$Seq } else { [int]$Client.NextSeq }
+    $Client.NextSeq = [Math]::Max([int]$Client.NextSeq, $messageSeq + 1)
+
+    return New-ProtocolMessage -Type 'PlayerAction' -Seq $messageSeq -PlayerId ([string]$Client.PlayerId) -HandId ([int]$ActionRequest.HandId) -Payload $payload
+}
+
+function Send-PlayerAction {
+    param(
+        [Parameter(Mandatory = $true)]$Client,
+        [Parameter(Mandatory = $true)]$Message
+    )
+
+    if ($null -eq $Client.Writer) {
+        throw 'Client is not connected.'
+    }
+
+    $Client.Writer.WriteLine((ConvertTo-MessageJson -Message $Message))
+}
+
+function Read-ClientActionInput {
+    param(
+        [Parameter(Mandatory = $true)]$Client,
+        [Parameter(Mandatory = $true)]$ActionRequest,
+        [Parameter(Mandatory = $false)][scriptblock]$ActionProvider
+    )
+
+    while ($true) {
+        $inputText = if ($null -ne $ActionProvider) {
+            & $ActionProvider $Client $ActionRequest
+        } else {
+            $legalActions = @(Get-ClientLegalActionsFromRequest -ActionRequest $ActionRequest)
+            if (Get-Command Format-NumberedLegalActions -ErrorAction SilentlyContinue) {
+                Write-Host "Actions: $(Format-NumberedLegalActions -Actions $legalActions)"
+            }
+            Read-Host '>'
+        }
+
+        try {
+            return ConvertTo-ClientPlayerAction -Client $Client -ActionRequest $ActionRequest -InputText $inputText
+        } catch {
+            if ($_.Exception.Message -eq 'Player quit.') {
+                throw
+            }
+            Write-Host "Invalid action: $($_.Exception.Message)"
+        }
+    }
+}
+
 function Handle-ServerMessage {
     param(
         [Parameter(Mandatory = $true)]$Client,
         [Parameter(Mandatory = $true)]$Message,
+        [Parameter(Mandatory = $false)][scriptblock]$ActionProvider,
         [Parameter(Mandatory = $false)][switch]$Quiet
     )
 
@@ -123,10 +263,24 @@ function Handle-ServerMessage {
                 Show-StateSnapshot -Snapshot $Message
             }
         }
+        'ActionRequest' {
+            $Client.LastActionRequest = $Message
+            if (-not $Quiet) {
+                $action = Read-ClientActionInput -Client $Client -ActionRequest $Message -ActionProvider $ActionProvider
+                Send-PlayerAction -Client $Client -Message $action
+            }
+        }
         'ErrorMessage' {
             $Client.LastError = [string]$Message.Payload.Message
             if (-not $Quiet) {
                 Write-Host "Error: $($Client.LastError)"
+            }
+        }
+        'HandResult' {
+            $Client.LastSnapshot = $Message.Payload
+            $Client.IsFinished = $true
+            if (-not $Quiet) {
+                Show-StateSnapshot -Snapshot $Message
             }
         }
         default {
@@ -142,7 +296,8 @@ function Start-PokerClient {
         [Parameter(Mandatory = $false)][string]$HostAddress = '127.0.0.1',
         [Parameter(Mandatory = $false)][int]$Port = 7777,
         [Parameter(Mandatory = $false)][string]$Name = 'Player',
-        [Parameter(Mandatory = $false)][int]$MaxMessages = 2
+        [Parameter(Mandatory = $false)][int]$MaxMessages = [int]::MaxValue,
+        [Parameter(Mandatory = $false)][scriptblock]$ActionProvider
     )
 
     $client = New-PokerClientState -Name $Name -HostAddress $HostAddress -Port $Port
@@ -155,7 +310,10 @@ function Start-PokerClient {
             if ($null -eq $message) {
                 break
             }
-            Handle-ServerMessage -Client $client -Message $message
+            Handle-ServerMessage -Client $client -Message $message -ActionProvider $ActionProvider
+            if ($client.IsFinished) {
+                break
+            }
         } catch {
             Write-Host "Read Host message failed: $($_.Exception.Message)"
             break

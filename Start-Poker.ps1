@@ -59,7 +59,7 @@ function Show-PokerHelp {
     $quitText = New-RenderText @(0x9000, 0x51fa)
     Write-Host "  fold/$fold / check/$check / call/$call / bet 80/$bet 80 / raise 160/$raise 160 / allin/$allin / status/$status / help/$helpText / quit/$quitText"
     Write-Host ""
-    Write-Host "LAN stage 2: Host/Client join is enabled. Remote actions are stage 3."
+    Write-Host "LAN stage 3: Host/Client join and remote actions are enabled."
 }
 
 if ($Help) {
@@ -68,7 +68,7 @@ if ($Help) {
 }
 
 if ($Mode -eq 'Host') {
-    Start-PokerServer -Port $Port -MaxSeats 6
+    Start-PokerServer -Port $Port -MaxSeats 6 -BotCount $Bots
     exit 0
 }
 
