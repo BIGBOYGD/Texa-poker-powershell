@@ -124,6 +124,156 @@ function Get-ServerPlayerByPlayerId {
     return $matches[0]
 }
 
+function Test-ServerGameAllowsDisconnectedPlayerRemoval {
+    param([Parameter(Mandatory = $true)]$Server)
+
+    if ($null -eq $Server.Game) {
+        return $true
+    }
+
+    if ([int]$Server.Game.HandId -le 0) {
+        return $true
+    }
+
+    return ([string]$Server.Game.Street -eq 'Finished')
+}
+
+function Test-ServerConnectionAlive {
+    param([Parameter(Mandatory = $true)]$Connection)
+
+    if (-not [bool]$Connection.IsConnected) {
+        return $false
+    }
+
+    if ($null -eq $Connection.TcpClient) {
+        return $true
+    }
+
+    try {
+        if (-not $Connection.TcpClient.Connected) {
+            return $false
+        }
+
+        $socket = $Connection.TcpClient.Client
+        if ($null -eq $socket) {
+            return $false
+        }
+
+        if ($socket.Poll(0, [System.Net.Sockets.SelectMode]::SelectRead) -and $socket.Available -eq 0) {
+            return $false
+        }
+
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Remove-ServerPlayerForConnection {
+    param(
+        [Parameter(Mandatory = $true)]$Server,
+        [Parameter(Mandatory = $true)]$Connection
+    )
+
+    $connectionId = [string]$Connection.ConnectionId
+    $playerId = [string]$Connection.PlayerId
+    $Server.Game.Players = @($Server.Game.Players | Where-Object {
+        $player = $_
+        $playerConnectionId = if ($player.PSObject.Properties.Name -contains 'ConnectionId') { [string]$player.ConnectionId } else { '' }
+        $protocolPlayerId = if ($player.PSObject.Properties.Name -contains 'PlayerId') { [string]$player.PlayerId } else { '' }
+        $isSameConnection = (-not [string]::IsNullOrWhiteSpace($connectionId) -and $playerConnectionId -eq $connectionId)
+        $isSamePlayer = (-not [string]::IsNullOrWhiteSpace($playerId) -and $protocolPlayerId -eq $playerId)
+
+        -not ([string]$player.Type -eq 'RemoteHuman' -and ($isSameConnection -or $isSamePlayer))
+    })
+}
+
+function Mark-ServerPlayerDisconnected {
+    param(
+        [Parameter(Mandatory = $true)]$Server,
+        [Parameter(Mandatory = $true)]$Connection
+    )
+
+    $player = $null
+    if (-not [string]::IsNullOrWhiteSpace([string]$Connection.PlayerId)) {
+        $player = Get-ServerPlayerByPlayerId -Server $Server -PlayerId ([string]$Connection.PlayerId)
+    }
+
+    if ($null -ne $player -and [string]$player.Status -ne 'AllIn' -and [string]$player.Status -ne 'Out') {
+        $player.Status = 'Folded'
+        $player.HasActedThisRound = $true
+    }
+}
+
+function Disconnect-ServerClient {
+    param(
+        [Parameter(Mandatory = $true)]$Server,
+        [Parameter(Mandatory = $true)]$Connection,
+        [Parameter(Mandatory = $false)][switch]$PreserveActiveTurnPlayer
+    )
+
+    $Connection.IsConnected = $false
+    if ($null -ne $Connection.TcpClient) {
+        try {
+            $Connection.TcpClient.Close()
+        } catch {
+        }
+    }
+
+    if ($PreserveActiveTurnPlayer) {
+    } elseif (Test-ServerGameAllowsDisconnectedPlayerRemoval -Server $Server) {
+        Remove-ServerPlayerForConnection -Server $Server -Connection $Connection
+    } else {
+        Mark-ServerPlayerDisconnected -Server $Server -Connection $Connection
+    }
+
+    $Server.Clients = @($Server.Clients | Where-Object { $_.ConnectionId -ne $Connection.ConnectionId })
+}
+
+function New-DisconnectedRemotePlayerAction {
+    param(
+        [Parameter(Mandatory = $true)]$Server,
+        [Parameter(Mandatory = $true)]$Connection
+    )
+
+    Disconnect-ServerClient -Server $Server -Connection $Connection -PreserveActiveTurnPlayer
+    return [pscustomobject]@{
+        Command = 'fold'
+        Amount = $null
+    }
+}
+
+function Prune-DisconnectedServerClients {
+    param([Parameter(Mandatory = $true)]$Server)
+
+    foreach ($connection in @($Server.Clients)) {
+        if (-not (Test-ServerConnectionAlive -Connection $connection)) {
+            Disconnect-ServerClient -Server $Server -Connection $connection
+        }
+    }
+
+    if (Test-ServerGameAllowsDisconnectedPlayerRemoval -Server $Server) {
+        $connectedIds = @{}
+        foreach ($connection in @($Server.Clients | Where-Object { $_.IsConnected })) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$connection.ConnectionId)) {
+                $connectedIds[[string]$connection.ConnectionId] = $true
+            }
+        }
+
+        $Server.Game.Players = @($Server.Game.Players | Where-Object {
+            $keep = $true
+            if ([string]$_.Type -ne 'RemoteHuman') {
+                $keep = $true
+            } else {
+                $connectionId = if ($_.PSObject.Properties.Name -contains 'ConnectionId') { [string]$_.ConnectionId } else { '' }
+                $keep = [string]::IsNullOrWhiteSpace($connectionId) -or $connectedIds.ContainsKey($connectionId)
+            }
+
+            $keep
+        })
+    }
+}
+
 function New-ActionRequestMessage {
     param(
         [Parameter(Mandatory = $true)]$Server,
@@ -196,7 +346,8 @@ function Test-RemotePlayerAction {
     }
 
     if (-not (Test-PlayerActionLegal -Game $Server.Game -Seat ([int]$player.Seat) -Command $command -Amount $amount)) {
-        $error = New-ServerErrorMessage -Server $Server -Code 'IllegalAction' -Message 'Action is not legal in current state.'
+        $message = -join (@(0x5f53, 0x524d, 0x72b6, 0x6001, 0x4e0b, 0x8be5, 0x64cd, 0x4f5c, 0x4e0d, 0x5408, 0x6cd5, 0x3002) | ForEach-Object { [char]$_ })
+        $error = New-ServerErrorMessage -Server $Server -Code 'IllegalAction' -Message $message
         return New-RemoteActionResult -Accepted $false -Error $error
     }
 
@@ -224,6 +375,8 @@ function Apply-RemotePlayerAction {
 
 function Get-NextAvailableSeat {
     param([Parameter(Mandatory = $true)]$Server)
+
+    Prune-DisconnectedServerClients -Server $Server
 
     $occupied = @{}
     foreach ($player in @($Server.Game.Players)) {
@@ -270,6 +423,8 @@ function Handle-JoinRequest {
     if ($null -ne $Connection.Seat) {
         return New-ServerErrorMessage -Server $Server -Code 'AlreadyJoined' -Message 'Connection has already joined.'
     }
+
+    Prune-DisconnectedServerClients -Server $Server
 
     $seat = Get-NextAvailableSeat -Server $Server
     if ($null -eq $seat) {
@@ -389,9 +544,13 @@ function Wait-RemotePlayerAction {
     )
 
     while ($true) {
-        $line = $Connection.Reader.ReadLine()
+        try {
+            $line = $Connection.Reader.ReadLine()
+        } catch {
+            return New-DisconnectedRemotePlayerAction -Server $Server -Connection $Connection
+        }
         if ($null -eq $line) {
-            throw 'Client disconnected while waiting for PlayerAction.'
+            return New-DisconnectedRemotePlayerAction -Server $Server -Connection $Connection
         }
 
         $message = ConvertFrom-MessageJson -Json $line
@@ -422,6 +581,7 @@ function Invoke-NetworkHand {
             throw "Remote connection for $playerId was not found."
         }
 
+        Send-StateSnapshotToPlayer -Server $Server -Connection $connection
         Send-ActionRequest -Server $Server -Connection $connection | Out-Null
         return Wait-RemotePlayerAction -Server $Server -Connection $connection
     }
@@ -489,6 +649,7 @@ function Add-ServerBots {
         }
 
         $bot = New-PlayerState -Seat $seat -Name "Bot-$seat" -Type 'Bot' -Chips 1000
+        $bot | Add-Member -NotePropertyName BotType -NotePropertyValue 'LooseBot'
         $bot | Add-Member -NotePropertyName PlayerId -NotePropertyValue "P$seat"
         $Server.Game.Players = @($Server.Game.Players) + $bot
     }

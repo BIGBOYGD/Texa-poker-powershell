@@ -55,6 +55,23 @@ function New-NetworkGameLoopActionMessage {
     return New-ProtocolMessage -Type 'PlayerAction' -Seq $Seq -PlayerId $PlayerId -HandId $HandId -Payload $payload
 }
 
+function New-NetworkGameLoopNullReader {
+    $reader = [pscustomobject]@{}
+    $reader | Add-Member -MemberType ScriptMethod -Name ReadLine -Value { return $null }
+    return $reader
+}
+
+function New-NetworkGameLoopMemoryWriter {
+    $writer = [pscustomobject]@{
+        Lines = @()
+    }
+    $writer | Add-Member -MemberType ScriptMethod -Name WriteLine -Value {
+        param($Line)
+        $this.Lines = @($this.Lines) + $Line
+    }
+    return $writer
+}
+
 Run-TestCase "Host applies only the current remote player's legal action through betting rules" {
     $table = New-NetworkGameLoopTestTable
     $server = $table.Server
@@ -184,6 +201,40 @@ Run-TestCase "Client converts English Chinese and numbered remote commands witho
     Assert-Equal 'allin' $allInAction.Payload.Command
     Assert-Equal 'check' $numberedAction.Payload.Command
     Assert-False ($client.PSObject.Properties.Name -contains 'Game')
+}
+
+Run-TestCase "Host treats disconnected current remote player as fold and removes connection" {
+    $table = New-NetworkGameLoopTestTable
+    $server = $table.Server
+    $table.Alice.Reader = New-NetworkGameLoopNullReader
+
+    $action = Wait-RemotePlayerAction -Server $server -Connection $table.Alice
+
+    Assert-Equal 'fold' $action.Command
+    Assert-True ($null -eq $action.Amount)
+    Assert-False $table.Alice.IsConnected
+    Assert-Equal 1 @($server.Clients).Count
+    Assert-Equal 'C2' $server.Clients[0].ConnectionId
+    Assert-Equal 'Waiting' (Get-PlayerBySeat -Game $server.Game -Seat 1).Status
+}
+
+Run-TestCase "Host finishes hand after remote disconnect and frees seat for next join" {
+    $server = New-PokerServerState -MaxSeats 2
+    $alice = New-PokerClientConnectionState -ConnectionId 'C1' -Reader (New-NetworkGameLoopNullReader) -Writer (New-NetworkGameLoopMemoryWriter)
+    $join = Handle-JoinRequest -Server $server -Connection $alice -Message (New-JoinRequestMessage -Seq 1 -Name 'Alice')
+    Add-ServerBots -Server $server -BotCount 1
+
+    Invoke-NetworkHand -Server $server -MaxTurns 20
+    $carol = New-PokerClientConnectionState -ConnectionId 'C2'
+    $response = Handle-JoinRequest -Server $server -Connection $carol -Message (New-JoinRequestMessage -Seq 2 -Name 'Carol')
+
+    Assert-Equal 'JoinAccepted' $join.Type
+    Assert-Equal 'Finished' $server.Game.Street
+    Assert-False $alice.IsConnected
+    Assert-Equal 'JoinAccepted' $response.Type
+    Assert-Equal 1 ([int]$response.Payload.Seat)
+    Assert-Equal 'P1' $response.Payload.PlayerId
+    Assert-SequenceEqual @('Carol', 'Bot-2') @($server.Game.Players | Sort-Object Seat | ForEach-Object { $_.Name })
 }
 
 Run-TestCase "GameLoop accepts RemoteHuman actions through a remote action provider" {

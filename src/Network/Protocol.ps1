@@ -4,6 +4,8 @@ $script:ProtocolMessageTypes = @(
     'StateSnapshot',
     'ActionRequest',
     'PlayerAction',
+    'ActionAccepted',
+    'LeaveAccepted',
     'ErrorMessage',
     'HandResult'
 )
@@ -220,16 +222,21 @@ function New-StateSnapshotForPlayer {
         if ($isTarget -or $showAllHoleCards) {
             $holeCards = @(ConvertTo-NetworkCardTextList -Cards @($player.HoleCards))
         }
+        $status = [string]$player.Status
+        if ([string]$Game.Street -ne 'Finished' -and $null -ne $Game.ActionSeat -and [int]$player.Seat -eq [int]$Game.ActionSeat -and $status -eq 'Waiting') {
+            $status = 'Acting'
+        }
 
         $players += [pscustomobject]@{
             Seat = [int]$player.Seat
             PlayerId = Get-ProtocolPlayerId -Player $player
             Name = [string]$player.Name
             Type = [string]$player.Type
+            BotType = if ($player.PSObject.Properties.Name -contains 'BotType') { [string]$player.BotType } else { $null }
             Chips = [int]$player.Chips
             Bet = [int]$player.StreetBet
             TotalBetThisHand = [int]$player.TotalBetThisHand
-            Status = [string]$player.Status
+            Status = $status
             IsYou = $isTarget
             HoleCards = $holeCards
         }

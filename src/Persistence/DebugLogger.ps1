@@ -89,7 +89,7 @@ function Write-BotDecisionDebugLog {
     }
 
     $legalActions = @(Get-LegalActions -Game $Game -Seat $Player.Seat)
-    $botType = 'RandomBot'
+    $botType = 'LooseBot'
     if ($Player.PSObject.Properties.Name -contains 'BotType' -and -not [string]::IsNullOrWhiteSpace($Player.BotType)) {
         $botType = [string]$Player.BotType
     }

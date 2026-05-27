@@ -13,6 +13,7 @@ $script:QuickTestFiles = @(
     'Test-NetworkProtocol.ps1',
     'Test-NetworkConnection.ps1',
     'Test-NetworkGameLoop.ps1',
+    'Test-HttpNetwork.ps1',
     'Test-CommandParser.ps1',
     'Test-Rules.ps1',
     'Test-Render.ps1',

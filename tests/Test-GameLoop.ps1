@@ -8,11 +8,15 @@
 . "$PSScriptRoot\..\src\Core\Showdown.ps1"
 . "$PSScriptRoot\..\src\UI\CommandParser.ps1"
 . "$PSScriptRoot\..\src\UI\Render.ps1"
+. "$PSScriptRoot\..\src\Bot\BotProfiles.ps1"
+. "$PSScriptRoot\..\src\Bot\BotEvaluator.ps1"
+. "$PSScriptRoot\..\src\Bot\BotDecision.ps1"
 . "$PSScriptRoot\..\src\Bot\RandomBot.ps1"
+. "$PSScriptRoot\..\src\Bot\RuleBot.ps1"
 . "$PSScriptRoot\..\src\Bot\BotBase.ps1"
 . "$PSScriptRoot\..\src\Local\GameLoop.ps1"
 
-Run-TestCase "Local hand loop completes a two bot hand" {
+Run-TestCase "Local hand loop finishes a two bot hand and conserves chips" {
     $players = @(
         (New-PlayerState -Seat 1 -Name 'Bot-A' -Type 'Bot' -Chips 1000),
         (New-PlayerState -Seat 2 -Name 'Bot-B' -Type 'Bot' -Chips 1000)
@@ -28,8 +32,11 @@ Run-TestCase "Local hand loop completes a two bot hand" {
 
     Assert-Equal 1 $game.HandId
     Assert-Equal 'Finished' $game.Street
-    Assert-Equal 5 $game.CommunityCards.Count
+    Assert-True ($game.CommunityCards.Count -ge 0 -and $game.CommunityCards.Count -le 5)
     Assert-Equal 2000 $totalChips
+    foreach ($player in $game.Players) {
+        Assert-True ([int]$player.Chips -ge 0)
+    }
 }
 
 Run-TestCase "Betting round advances through legal bot actions" {
@@ -44,7 +51,14 @@ Run-TestCase "Betting round advances through legal bot actions" {
 
     Assert-True (Is-BettingRoundClosed -Game $game)
     Assert-True ($null -eq $game.ActionSeat)
-    Assert-Equal 20 $game.CurrentBet
+    Assert-True ([int]$game.CurrentBet -ge 20)
+
+    $totalChipsAndBets = 0
+    foreach ($player in $game.Players) {
+        Assert-True ([int]$player.Chips -ge 0)
+        $totalChipsAndBets += [int]$player.Chips + [int]$player.TotalBetThisHand
+    }
+    Assert-Equal 2000 $totalChipsAndBets
 }
 
 Run-TestCase "Heads-up short small blind all-in is skipped before action" {

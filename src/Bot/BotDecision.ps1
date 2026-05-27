@@ -60,7 +60,7 @@ function New-BotDecisionContext {
         Street = $Game.Street
         BotSeat = $Player.Seat
         BotName = $Player.Name
-        BotType = Get-BotObjectValue -Object $Player -Name 'BotType' -Default 'RandomBot'
+        BotType = Get-BotObjectValue -Object $Player -Name 'BotType' -Default 'LooseBot'
         HoleCards = $holeCards
         CommunityCards = $communityCards
         Chips = [int]$Player.Chips

@@ -4,7 +4,7 @@ function Get-BotAction {
         [Parameter(Mandatory = $true)]$Player
     )
 
-    $botType = 'RandomBot'
+    $botType = 'LooseBot'
     if ($Player.PSObject.Properties.Name -contains 'BotType' -and -not [string]::IsNullOrWhiteSpace($Player.BotType)) {
         $botType = [string]$Player.BotType
     }
@@ -13,6 +13,9 @@ function Get-BotAction {
         'RuleBot' {
             if (Get-Command Get-RuleBotAction -ErrorAction SilentlyContinue) {
                 return Get-RuleBotAction -Game $Game -Player $Player
+            }
+            if (Get-Command Get-RandomBotAction -ErrorAction SilentlyContinue) {
+                return Get-RandomBotAction -Game $Game -Player $Player
             }
         }
         'TightBot' {
@@ -31,6 +34,12 @@ function Get-BotAction {
             }
         }
         default {
+            if (Get-Command Get-LooseBotAction -ErrorAction SilentlyContinue) {
+                return Get-LooseBotAction -Game $Game -Player $Player
+            }
+            if (Get-Command Get-RuleBotAction -ErrorAction SilentlyContinue) {
+                return Get-RuleBotAction -Game $Game -Player $Player
+            }
             if (Get-Command Get-RandomBotAction -ErrorAction SilentlyContinue) {
                 return Get-RandomBotAction -Game $Game -Player $Player
             }

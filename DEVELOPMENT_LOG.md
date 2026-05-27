@@ -1,5 +1,68 @@
 # Development Log
 
+## 2026-05-27 - v0.5 Final Close-out
+
+### Summary
+
+v0.5 is documented as complete for LAN Host / Client manual acceptance. The milestone adds HTTP polling Host / Client play, private Client state rendering, multi-human waiting synchronization, reconnect handling, pause behavior for offline real players, and table reset when connected real players are eliminated so Bots do not continue playing alone.
+
+### Modified Files
+
+- `README.md`
+  - Updated the visible project version to v0.5.
+  - Added Host / Client HTTP run commands.
+  - Documented LAN manual testing commands for Host, Alice, and Bob.
+  - Documented that Host auto-fill Bots currently default to `LooseBot`.
+  - Documented remote numbered commands, private Client views, reconnect behavior, pause behavior, and real-player-eliminated table reset.
+  - Removed stale v0.4 wording that said LAN Host / Client was not included.
+- `DEVELOPMENT_PLAN.md`
+  - Marked v0.5 as complete for LAN Host / Client manual acceptance.
+  - Moved LAN Host / Client from next milestone into implemented scope.
+  - Added v0.6 as LAN polish / reliability.
+- `DEVELOPMENT_LOG.md`
+  - Added this v0.5 close-out entry.
+
+### Added / Updated Tests
+
+- `tests/Test-HttpNetwork.ps1`
+  - Covers HTTP join/reconnect without filling the table.
+  - Covers automatic Host Bots using `LooseBot`.
+  - Covers private StateSnapshot behavior for each Client.
+  - Covers non-acting players seeing wait state without legal commands.
+  - Covers legal remote action queuing and clearing.
+  - Covers current decision timeout not falsely pausing the game.
+  - Covers non-acting player timeout and explicit leave pause behavior.
+  - Covers same-name reconnect resume behavior.
+  - Covers insufficient connected real players between hands.
+  - Covers connected real players being eliminated and the table resetting instead of Bots playing alone.
+- Existing network tests also cover protocol validation, Client display formatting, Chinese remote action errors, stale hand rejection, and remote action routing through the normal betting rules.
+
+### Verification Notes
+
+Fresh verification for this close-out:
+
+```powershell
+.\tests\Run-Tests.ps1 -Name HttpNetwork
+.\tests\Run-Tests.ps1
+```
+
+Result:
+
+- HTTP network tests pass.
+- Quick test suite passes.
+
+### Known Issues
+
+- HTTP Host / Client is suitable for local manual acceptance, not yet a polished lobby system.
+- TCP transport remains experimental; the default and recommended transport is HTTP.
+- No GUI, web UI, public matchmaking, account system, persistent save, or full replay system.
+- Bot strategy is rule/profile driven and does not adapt to individual player history.
+- Debug logs are decision logs only, not full replay files.
+
+### Next Plan
+
+Move to v0.6 only for LAN polish and reliability work: clearer Host status output, better manual test notes, and optional restart/ready flow if automatic table reset feels too abrupt in manual play.
+
 ## 2026-05-26 - v0.4 Final Close-out
 
 ### Summary

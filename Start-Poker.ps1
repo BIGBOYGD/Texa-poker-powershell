@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $false)][ValidateRange(1, 65535)][int]$Port = 7777,
     [Parameter(Mandatory = $false)][Alias('Host')][string]$HostAddress = '127.0.0.1',
     [Parameter(Mandatory = $false)][string]$Name = 'Player',
+    [Parameter(Mandatory = $false)][ValidateSet('Http', 'Tcp')][string]$Transport = 'Http',
     [Parameter(Mandatory = $false)][switch]$AutoPlay,
     [Parameter(Mandatory = $false)][switch]$Help
 )
@@ -36,6 +37,8 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\src\Network\Protocol.ps1"
 . "$PSScriptRoot\src\Network\Server.ps1"
 . "$PSScriptRoot\src\Network\Client.ps1"
+. "$PSScriptRoot\src\Network\HttpServer.ps1"
+. "$PSScriptRoot\src\Network\HttpClient.ps1"
 
 function Show-PokerHelp {
     Write-Host "PokerTerminalPS"
@@ -46,6 +49,8 @@ function Show-PokerHelp {
     Write-Host "  .\Start-Poker.ps1 -Mode LocalHotSeat -Players 3"
     Write-Host "  .\Start-Poker.ps1 -Mode Host -Port 7777"
     Write-Host "  .\Start-Poker.ps1 -Mode Client -Host 127.0.0.1 -Port 7777 -Name Alice"
+    Write-Host "  .\Start-Poker.ps1 -Mode Host -Port 7777 -Transport Tcp"
+    Write-Host "  .\Start-Poker.ps1 -Mode Client -Host 127.0.0.1 -Port 7777 -Name Alice -Transport Tcp"
     Write-Host ""
     Write-Host "$(New-RenderText @(0x5e38, 0x7528, 0x547d, 0x4ee4)):"
     $fold = New-RenderText @(0x5f03, 0x724c)
@@ -68,12 +73,20 @@ if ($Help) {
 }
 
 if ($Mode -eq 'Host') {
-    Start-PokerServer -Port $Port -MaxSeats 6 -BotCount $Bots
+    if ($Transport -eq 'Tcp') {
+        Start-PokerServer -Port $Port -MaxSeats 6 -BotCount $Bots
+    } else {
+        Start-PokerHttpServer -Port $Port -MaxSeats 6 -BotCount $Bots
+    }
     exit 0
 }
 
 if ($Mode -eq 'Client') {
-    Start-PokerClient -HostAddress $HostAddress -Port $Port -Name $Name | Out-Null
+    if ($Transport -eq 'Tcp') {
+        Start-PokerClient -HostAddress $HostAddress -Port $Port -Name $Name | Out-Null
+    } else {
+        Start-PokerHttpClient -HostAddress $HostAddress -Port $Port -Name $Name | Out-Null
+    }
     exit 0
 }
 
@@ -88,8 +101,7 @@ for ($seat = 1; $seat -le $seatCount; $seat++) {
         $tablePlayers += New-PlayerState -Seat $seat -Name $humanName -Type 'HumanLocal' -Chips 1000
     } elseif ($Mode -eq 'Local') {
         $bot = New-PlayerState -Seat $seat -Name "$botPrefix$seat" -Type 'Bot' -Chips 1000
-        $botTypes = @('RandomBot', 'TightBot', 'LooseBot', 'RuleBot')
-        $bot | Add-Member -NotePropertyName BotType -NotePropertyValue $botTypes[($seat - 2) % $botTypes.Count]
+        $bot | Add-Member -NotePropertyName BotType -NotePropertyValue 'LooseBot'
         $tablePlayers += $bot
     } else {
         $tablePlayers += New-PlayerState -Seat $seat -Name "$playerPrefix$seat" -Type 'HumanLocal' -Chips 1000
@@ -107,6 +119,11 @@ for ($hand = 1; $hand -le $handsToPlay; $hand++) {
         foreach ($player in $game.Players) {
             if ($player.Type -eq 'HumanLocal') {
                 $player.Type = 'Bot'
+                if ($player.PSObject.Properties.Name -contains 'BotType') {
+                    $player.BotType = 'LooseBot'
+                } else {
+                    $player | Add-Member -NotePropertyName BotType -NotePropertyValue 'LooseBot'
+                }
             }
         }
     }

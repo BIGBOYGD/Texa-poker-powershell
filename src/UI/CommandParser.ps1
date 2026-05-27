@@ -3,7 +3,7 @@ function ConvertTo-PlayerAction {
 
     $parts = @($InputText.Trim() -split '\s+' | Where-Object { $_ -ne '' })
     if ($parts.Count -eq 0) {
-        throw 'Empty command.'
+        throw "$(New-CommandText @(0x8f93, 0x5165, 0x4e3a, 0x7a7a, 0x3002))"
     }
 
     $command = ConvertTo-CanonicalCommand -CommandText $parts[0]
@@ -11,19 +11,19 @@ function ConvertTo-PlayerAction {
 
     if (@('bet', 'raise') -contains $command) {
         if ($parts.Count -ne 2) {
-            throw "$command requires an amount."
+            throw "$(New-CommandText @(0x8be5, 0x547d, 0x4ee4, 0x9700, 0x8981, 0x91d1, 0x989d, 0x3002))"
         }
         $parsed = 0
         if (-not [int]::TryParse($parts[1], [ref]$parsed)) {
-            throw "Invalid amount '$($parts[1])'."
+            throw "$(New-CommandText @(0x91d1, 0x989d, 0x65e0, 0x6548)): $($parts[1])$(New-CommandText @(0x3002))"
         }
         $amount = $parsed
     } elseif ($parts.Count -ne 1) {
-        throw "Command '$command' does not take extra arguments."
+        throw "$(New-CommandText @(0x547d, 0x4ee4)) '$command' $(New-CommandText @(0x4e0d, 0x80fd, 0x5e26, 0x989d, 0x5916, 0x53c2, 0x6570, 0x3002))"
     }
 
     if (@('help', 'status', 'history', 'quit', 'fold', 'check', 'call', 'allin', 'bet', 'raise') -notcontains $command) {
-        throw "Unknown command '$command'."
+        throw "$(New-CommandText @(0x672a, 0x77e5, 0x547d, 0x4ee4)): $command$(New-CommandText @(0x3002))"
     }
 
     [pscustomobject]@{
@@ -40,7 +40,7 @@ function ConvertFrom-NumberedPlayerAction {
 
     $parts = @($InputText.Trim() -split '\s+' | Where-Object { $_ -ne '' })
     if ($parts.Count -eq 0) {
-        throw 'Empty command.'
+        throw "$(New-CommandText @(0x8f93, 0x5165, 0x4e3a, 0x7a7a, 0x3002))"
     }
 
     $index = 0
@@ -50,26 +50,26 @@ function ConvertFrom-NumberedPlayerAction {
 
     $actions = @($LegalActions)
     if ($index -lt 1 -or $index -gt $actions.Count) {
-        throw "Numbered command '$index' is not available."
+        throw "$(New-CommandText @(0x7f16, 0x53f7, 0x547d, 0x4ee4)) '$index' $(New-CommandText @(0x4e0d, 0x53ef, 0x7528, 0x3002))"
     }
 
     $selected = $actions[$index - 1]
     $amount = $null
     if ($null -ne $selected.MinAmount) {
         if ($parts.Count -gt 2) {
-            throw "Numbered command '$index' has too many arguments."
+            throw "$(New-CommandText @(0x7f16, 0x53f7, 0x547d, 0x4ee4)) '$index' $(New-CommandText @(0x53c2, 0x6570, 0x8fc7, 0x591a, 0x3002))"
         }
         if ($parts.Count -eq 2) {
             $parsed = 0
             if (-not [int]::TryParse($parts[1], [ref]$parsed)) {
-                throw "Invalid amount '$($parts[1])'."
+                throw "$(New-CommandText @(0x91d1, 0x989d, 0x65e0, 0x6548)): $($parts[1])$(New-CommandText @(0x3002))"
             }
             $amount = $parsed
         } else {
             $amount = [int]$selected.MinAmount
         }
     } elseif ($parts.Count -ne 1) {
-        throw "Numbered command '$index' does not take an amount."
+        throw "$(New-CommandText @(0x7f16, 0x53f7, 0x547d, 0x4ee4)) '$index' $(New-CommandText @(0x4e0d, 0x80fd, 0x5e26, 0x91d1, 0x989d, 0x3002))"
     }
 
     [pscustomobject]@{

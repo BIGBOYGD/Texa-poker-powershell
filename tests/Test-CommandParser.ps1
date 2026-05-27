@@ -1,4 +1,4 @@
-. "$PSScriptRoot\..\src\UI\CommandParser.ps1"
+﻿. "$PSScriptRoot\..\src\UI\CommandParser.ps1"
 
 function New-TestText {
     param([Parameter(Mandatory = $true)][int[]]$CodePoints)
@@ -51,4 +51,23 @@ Run-TestCase "Numbered commands resolve against current legal actions" {
     $customRaise = ConvertFrom-NumberedPlayerAction -InputText '3 200' -LegalActions $legalActions
     Assert-Equal 'raise' $customRaise.Command
     Assert-Equal 200 $customRaise.Amount
+}
+
+Run-TestCase "Numbered command parser reports Chinese errors" {
+    $legalActions = @(
+        [pscustomobject]@{ Command = 'fold'; MinAmount = $null; MaxAmount = $null },
+        [pscustomobject]@{ Command = 'call'; MinAmount = $null; MaxAmount = $null },
+        [pscustomobject]@{ Command = 'raise'; MinAmount = 40; MaxAmount = 1000 },
+        [pscustomobject]@{ Command = 'allin'; MinAmount = $null; MaxAmount = $null }
+    )
+
+    try {
+        ConvertFrom-NumberedPlayerAction -InputText '2 100' -LegalActions $legalActions | Out-Null
+        throw 'Expected parser to reject amount on call.'
+    } catch {
+        $numberedCommand = New-TestText @(0x7f16, 0x53f7, 0x547d, 0x4ee4)
+        $cannotHaveAmount = New-TestText @(0x4e0d, 0x80fd, 0x5e26, 0x91d1, 0x989d)
+        Assert-True ($_.Exception.Message -match [regex]::Escape($numberedCommand)) "Expected Chinese numbered command error."
+        Assert-True ($_.Exception.Message -match [regex]::Escape($cannotHaveAmount)) "Expected Chinese amount rejection."
+    }
 }

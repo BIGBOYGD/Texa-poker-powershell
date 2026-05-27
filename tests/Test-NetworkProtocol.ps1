@@ -26,6 +26,7 @@ function New-NetworkProtocolTestGame {
     $alice = New-PlayerState -Seat 1 -Name 'Alice' -Type 'RemoteHuman' -Chips 840
     $bob = New-PlayerState -Seat 2 -Name 'Bob' -Type 'RemoteHuman' -Chips 910
     $bot = New-PlayerState -Seat 3 -Name 'Bot-3' -Type 'Bot' -Chips 1000
+    $bot | Add-Member -NotePropertyName BotType -NotePropertyValue 'RandomBot'
     Add-NetworkTestPlayerId -Player $alice -PlayerId 'P1'
     Add-NetworkTestPlayerId -Player $bob -PlayerId 'P2'
     Add-NetworkTestPlayerId -Player $bot -PlayerId 'P3'
@@ -124,6 +125,7 @@ Run-TestCase "StateSnapshot shows only the target player's private hole cards" {
     Assert-SequenceEqual @('As', 'Kd') @($bobRow.HoleCards)
     Assert-True ($null -eq $aliceRow.HoleCards)
     Assert-True ($null -eq $botRow.HoleCards)
+    Assert-Equal 'RandomBot' $botRow.BotType
     Assert-SequenceEqual @('Ah', '7d', '7s') @($payload.CommunityCards)
     Assert-True (@($payload.LegalActions).Count -gt 0)
 }

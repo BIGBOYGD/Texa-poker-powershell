@@ -1,9 +1,15 @@
 . "$PSScriptRoot\..\src\Core\Card.ps1"
 . "$PSScriptRoot\..\src\Core\Deck.ps1"
 . "$PSScriptRoot\..\src\Core\GameState.ps1"
+. "$PSScriptRoot\..\src\Core\HandEvaluator.ps1"
 . "$PSScriptRoot\..\src\Core\Betting.ps1"
 . "$PSScriptRoot\..\src\Core\Rules.ps1"
+. "$PSScriptRoot\..\src\Bot\BotProfiles.ps1"
+. "$PSScriptRoot\..\src\Bot\BotEvaluator.ps1"
+. "$PSScriptRoot\..\src\Bot\BotDecision.ps1"
 . "$PSScriptRoot\..\src\Bot\RandomBot.ps1"
+. "$PSScriptRoot\..\src\Bot\LooseBot.ps1"
+. "$PSScriptRoot\..\src\Bot\RuleBot.ps1"
 . "$PSScriptRoot\..\src\Bot\BotBase.ps1"
 
 Run-TestCase "RandomBot chooses only legal actions for 1000 decisions" {
@@ -23,7 +29,7 @@ Run-TestCase "RandomBot chooses only legal actions for 1000 decisions" {
     }
 }
 
-Run-TestCase "BotBase delegates bot decisions to RandomBot" {
+Run-TestCase "BotBase defaults missing BotType to LooseBot" {
     $players = @(
         (New-PlayerState -Seat 1 -Name 'Bot-A' -Type 'Bot' -Chips 1000),
         (New-PlayerState -Seat 2 -Name 'Bot-B' -Type 'Bot' -Chips 1000)
@@ -36,4 +42,6 @@ Run-TestCase "BotBase delegates bot decisions to RandomBot" {
 
     Assert-True (Test-PlayerActionLegal -Game $game -Seat $player.Seat -Command $action.Command -Amount $action.Amount)
     Assert-True (@('fold', 'check', 'call', 'bet', 'raise', 'allin') -contains $action.Command)
+    Assert-True ($action.PSObject.Properties.Name -contains 'Reason') "Default bot action should be a LooseBot decision result."
+    Assert-True ($action.PSObject.Properties.Name -contains 'FinalScore') "Default bot action should include LooseBot score context."
 }
